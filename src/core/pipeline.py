@@ -10,11 +10,18 @@ from math import floor
 import click
 from dotenv import load_dotenv
 
+from alive_progress import alive_bar
 
-def save_gaze_data(gaze, gaze_ts, recording_loc, export=True):
+
+def save_gaze_data(gaze, gaze_ts, recording_loc, plugin=None, export=True):
     import file_methods as fm
-
-    directory = os.path.join(recording_loc, "pipeline-gaze-mappings")
+    
+    if plugin is None:
+        directory = os.path.join(recording_loc, "pipeline-gaze-mappings", "vanilla")
+        export_directory = os.path.join(recording_loc, "exports", "vanilla")
+    else:
+        directory = os.path.join(recording_loc, "pipeline-gaze-mappings", plugin.__name__)
+        export_directory = os.path.join(recording_loc, "exports", plugin.__name__)
     os.makedirs(directory, exist_ok=True)
     file_name = "pipeline"  # self._gaze_mapping_file_name(gaze_mapper)
     with fm.PLData_Writer(directory, file_name) as writer:
@@ -26,13 +33,34 @@ def save_gaze_data(gaze, gaze_ts, recording_loc, export=True):
 
     if export:
         import player_methods as pm
+        import csv_utils
         from raw_data_exporter import Gaze_Positions_Exporter
 
-        export_directory = os.path.join(recording_loc, "pipeline-exports")
+        class My_Gaze_Positions_Exporter(Gaze_Positions_Exporter):
+            @classmethod
+            def csv_export_labels(cls) -> T.Tuple[csv_utils.CSV_EXPORT_LABEL_TYPE, ...]:
+                return Gaze_Positions_Exporter.csv_export_labels() + ('pupil_confidence0', 'pupil_confidence1')
+            
+            @classmethod
+            def dict_export(
+                cls, raw_value: csv_utils.CSV_EXPORT_RAW_TYPE, world_index: int
+            ) -> dict:
+                res = Gaze_Positions_Exporter.dict_export(raw_value, world_index)
+                res['pupil_confidence0'] = 0.0
+                res['pupil_confidence1'] = 0.0
+                if raw_value.get("base_data", None) is not None:
+                    for v in raw_value['base_data']:
+                        if v['id'] == 0:
+                            res['pupil_confidence0'] = v['confidence']
+                        elif v['id'] == 1:
+                            res['pupil_confidence1'] = v['confidence']
+                    
+                return res
+        
         os.makedirs(export_directory, exist_ok=True)
         gaze_bisector = pm.Bisector(gaze, gaze_ts)
-        gaze_positions_exporter = Gaze_Positions_Exporter()
-        gaze_positions_exporter.csv_export_write(
+        My_Gaze_Positions_Exporter = My_Gaze_Positions_Exporter()
+        My_Gaze_Positions_Exporter.csv_export_write(
             positions_bisector=gaze_bisector,
             timestamps=gaze_ts,
             export_window=[
@@ -57,31 +85,40 @@ def map_pupil_data(gazer, pupil_data):
     curr_ts = first_ts
 
     prev_prog = 0.0
-    for gaze_datum in gazer.map_pupil_to_gaze(pupil_data):
-        curr_ts = max(curr_ts, gaze_datum["timestamp"])
-        progress = (curr_ts - first_ts) / ts_span
-        if floor(progress * 100) != floor(prev_prog * 100):
-            logging.info(f"Gaze Mapping Progress: {floor(progress*100)}%")
-        prev_prog = progress
-        # result = (curr_ts, fm.Serialized_Dict(gaze_datum))
+    with alive_bar(int(len(pupil_data)/2), bar = "filling") as bar:
+        for gaze_datum in gazer.map_pupil_to_gaze(pupil_data):
+            curr_ts = max(curr_ts, gaze_datum["timestamp"])
+            progress = (curr_ts - first_ts) / ts_span
+            #if floor(progress * 100) != floor(prev_prog * 100):
+            #    logging.info(f"Gaze Mapping Progress: {floor(progress*100)}%")
+            bar()
+            prev_prog = progress
+            # result = (curr_ts, fm.Serialized_Dict(gaze_datum))
 
-        gaze.append(fm.Serialized_Dict(gaze_datum))
-        gaze_ts.append(curr_ts)
+            gaze.append(fm.Serialized_Dict(gaze_datum))
+            gaze_ts.append(curr_ts)
 
     logging.info("Pupil data mapped to gaze data.")
     return gaze, gaze_ts
 
 
 def calibrate_and_validate(
-    ref_loc, pupil_loc, scene_cam_intrinsics_loc, mapping_method
+    ref_loc, pupil_loc, scene_cam_intrinsics_loc, mapping_method, realtime_ref_loc=None
 ):
-    ref_data = load_ref_data(ref_loc)
-    logging.debug(f"Loaded {len(ref_data)} reference locations")
+    ref_data = None
+    if realtime_ref_loc is not None:
+        realtime_ref_data = load_realtime_ref_data(realtime_ref_loc)
+        logging.debug(f"Loaded {len(realtime_ref_data)} reference locations")
+    else:
+        load_ref_data(ref_loc)
+        logging.debug(f"Loaded {len(ref_data)} reference locations")
+        realtime_ref_data = None
+
     pupil = load_pupil_data(pupil_loc)
     logging.debug(f"Loaded {len(pupil.data)} pupil positions")
-    scene_cam_intrinsics = load_intrinsics(scene_cam_intrinsics_loc)
+    scene_cam_intrinsics = load_intrinsics(scene_cam_intrinsics_loc, resolution=(640,480))
     logging.debug(f"Loaded scene camera intrinsics: {scene_cam_intrinsics}")
-    gazer = fit_gazer(mapping_method, ref_data, pupil.data, scene_cam_intrinsics)
+    gazer = fit_gazer(mapping_method, ref_data, pupil.data, scene_cam_intrinsics, realtime_ref=realtime_ref_data)
     return gazer, pupil.data
 
 
@@ -92,6 +129,44 @@ def load_ref_data(ref_loc):
     assert ref["version"] == 1, "unexpected reference data format"
     return [{"screen_pos": r[0], "timestamp": r[2]} for r in ref["data"]]
 
+def load_realtime_ref_data(ref_loc):
+    import file_methods as fm
+
+    ref = fm.load_object(ref_loc)
+    res = [{"screen_pos": r["mm_pos"], "timestamp": r["timestamp"]} for r in ref["data"]]
+    return res
+    
+def get_first_realtime_ref_data_timestamp(ref_loc):
+    ref_data = load_realtime_ref_data(ref_loc)
+    first_timestamp = None
+    for ref in ref_data:
+        if first_timestamp is None or ref["timestamp"] < first_timestamp:
+            first_timestamp = ref["timestamp"]
+    return first_timestamp
+    
+def get_first_ref_data_timestamp(ref_loc):
+    ref_data = load_ref_data(ref_loc)
+    first_timestamp = None
+    for ref in ref_data:
+        if first_timestamp is None or ref["timestamp"] < first_timestamp:
+            first_timestamp = ref["timestamp"]
+    return first_timestamp
+    
+def get_last_realtime_ref_data_timestamp(ref_loc):
+    ref_data = load_realtime_ref_data(ref_loc)
+    first_timestamp = None
+    for ref in ref_data:
+        if first_timestamp is None or ref["timestamp"] > first_timestamp:
+            first_timestamp = ref["timestamp"]
+    return first_timestamp
+    
+def get_last_ref_data_timestamp(ref_loc):
+    ref_data = load_ref_data(ref_loc)
+    first_timestamp = None
+    for ref in ref_data:
+        if first_timestamp is None or ref["timestamp"] > first_timestamp:
+            first_timestamp = ref["timestamp"]
+    return first_timestamp
 
 def load_pupil_data(pupil_loc):
     import file_methods as fm
@@ -101,10 +176,23 @@ def load_pupil_data(pupil_loc):
     return pupil
 
 
-def load_intrinsics(intrinsics_loc, resolution=(640, 480)):
+def load_intrinsics(intrinsics_loc, resolution=None):#(640, 480)):
     import camera_models as cm
 
     intrinsics_loc = pathlib.Path(intrinsics_loc)
+    from file_methods import load_object
+    import ast
+    
+    intrinsics_dict = load_object(intrinsics_loc, allow_legacy=False)
+    
+    if resolution is None:
+        for key in intrinsics_dict.keys():
+            if key != 'version':
+                res = ast.literal_eval(key)
+                if type(res) == type((1,2)):
+                    resolution = res
+                    break
+    
     return cm.Camera_Model.from_file(
         intrinsics_loc.parent, intrinsics_loc.stem, resolution
     )
@@ -119,14 +207,15 @@ def available_mapping_methods():
     }
 
 
-def fit_gazer(mapping_method, ref_data, pupil_data, scene_cam_intrinsics):
+def fit_gazer(mapping_method, ref_data, pupil_data, scene_cam_intrinsics, realtime_ref=None):
     return mapping_method(
-        fake_gpool(scene_cam_intrinsics),
+        fake_gpool(scene_cam_intrinsics, realtime_ref=realtime_ref),
         calib_data={"ref_list": ref_data, "pupil_list": pupil_data},
+        posthoc_calib=(realtime_ref is not None),
     )
 
 
-def fake_gpool(scene_cam_intrinsics, app="pipeline", min_calibration_confidence=0.0):
+def fake_gpool(scene_cam_intrinsics, app="pipeline", min_calibration_confidence=0.0, realtime_ref=None):
     g_pool = types.SimpleNamespace()
     g_pool.capture = types.SimpleNamespace()
     g_pool.capture.intrinsics = scene_cam_intrinsics
@@ -134,6 +223,7 @@ def fake_gpool(scene_cam_intrinsics, app="pipeline", min_calibration_confidence=
     g_pool.get_timestamp = time.perf_counter
     g_pool.app = app
     g_pool.min_calibration_confidence = min_calibration_confidence
+    g_pool.realtime_ref = realtime_ref
     return g_pool
 
 
