@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 def pregenerate_eye_model(detector_3d, datums_2d, start_timestamp, stop_timestamp, threshold=None, aspectratio_threshold=None, freeze=True):
     import file_methods as fm
     prev_center = None
-    
+
     for datum_2d in datums_2d:
         # VELOCITY THRESHOLD
         if threshold is not None:
@@ -53,6 +53,7 @@ def pregenerate_eye_model(detector_3d, datums_2d, start_timestamp, stop_timestam
         if datum_2d["timestamp"] >= start_timestamp and datum_2d["timestamp"] <= stop_timestamp:
             observation = detector_3d._extract_observation(datum_2d)
             detector_3d.update_models(observation)
+
     if freeze:
         setattr(detector_3d, "is_long_term_model_frozen", True)
     return freeze
@@ -334,36 +335,36 @@ def pl_detection_on_video(recording_path, g_pool, pupil_params, detector_plugin=
     #exit()
     
     # Generate model based on entire video
-    #start_model_timestamp = 0.0
     #from operator import itemgetter
+    #start_model_timestamp = min(datum_list["2d"], key=itemgetter("timestamp"))["timestamp"]#0.0
     #freeze_model_timestamp = max(datum_list["2d"], key=itemgetter("timestamp"))["timestamp"]
-
+    
     has_frozen = False
     #import copy
     #sys.setrecursionlimit(10000)
     #temp_list = []
     #for datum in datum_list["2d"]:
     #    temp_list.append(datum["confidence"])
-    
+
     sync_updates_PL = False
     start_model_timestamp = None
     freeze_model_timestamp = None
     if not sync_updates_PL and (start_model_timestamp is not None and freeze_model_timestamp is not None):
         logging.info(f"Pregenerating 3D eye model...")
         has_frozen = pregenerate_eye_model(detector3d.pupil_detector, datum_list["2d"], start_model_timestamp, freeze_model_timestamp, threshold, aspectratio_threshold=Aspect_ratio_threshold, freeze=True)
-    
+
     #for i in range(len(datum_list["2d"])):
     #    datum_list["2d"][i]["confidence"] = temp_list[i]
     #datum_list["2d"] = temp_list
-    
+
     vidcap = cv2.VideoCapture(recording_path)
     success, frame = vidcap.read()
     logging.info(f"{recording_path} ({plugin_name}) 3D:")
     prev_center = None
-    
+
     if sync_updates_PL:
         new_detector2d = VanillaDetector2DPlugin(g_pool=g_pool, properties=pupil_params[id])
-    
+
     with alive_bar(int(total_frames), bar = "filling") as bar:
         # Pass 2 - 3D detector
         for idx, datum_2d in enumerate(datum_list["2d"]):

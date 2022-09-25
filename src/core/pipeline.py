@@ -103,7 +103,7 @@ def map_pupil_data(gazer, pupil_data):
 
 
 def calibrate_and_validate(
-    ref_loc, pupil_loc, scene_cam_intrinsics_loc, mapping_method, realtime_ref_loc=None
+    ref_loc, pupil_loc, scene_cam_intrinsics_loc, mapping_method, realtime_ref_loc=None, min_calibration_confidence=0.0
 ):
     ref_data = None
     if realtime_ref_loc is not None:
@@ -118,7 +118,7 @@ def calibrate_and_validate(
     logging.debug(f"Loaded {len(pupil.data)} pupil positions")
     scene_cam_intrinsics = load_intrinsics(scene_cam_intrinsics_loc, resolution=(640,480))
     logging.debug(f"Loaded scene camera intrinsics: {scene_cam_intrinsics}")
-    gazer = fit_gazer(mapping_method, ref_data, pupil.data, scene_cam_intrinsics, realtime_ref=realtime_ref_data)
+    gazer = fit_gazer(mapping_method, ref_data, pupil.data, scene_cam_intrinsics, realtime_ref=realtime_ref_data, min_calibration_confidence=min_calibration_confidence)
     return gazer, pupil.data
 
 
@@ -207,9 +207,9 @@ def available_mapping_methods():
     }
 
 
-def fit_gazer(mapping_method, ref_data, pupil_data, scene_cam_intrinsics, realtime_ref=None):
+def fit_gazer(mapping_method, ref_data, pupil_data, scene_cam_intrinsics, realtime_ref=None, min_calibration_confidence=0.0):
     return mapping_method(
-        fake_gpool(scene_cam_intrinsics, realtime_ref=realtime_ref),
+        fake_gpool(scene_cam_intrinsics, realtime_ref=realtime_ref, min_calibration_confidence=min_calibration_confidence),
         calib_data={"ref_list": ref_data, "pupil_list": pupil_data},
         posthoc_calib=(realtime_ref is not None),
     )
