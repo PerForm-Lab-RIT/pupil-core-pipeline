@@ -18,10 +18,10 @@ def save_gaze_data(gaze, gaze_ts, recording_loc, plugin=None, export=True):
     
     if plugin is None:
         directory = os.path.join(recording_loc, "pipeline-gaze-mappings", "vanilla")
-        export_directory = os.path.join(recording_loc, "exports", "vanilla")
+        export_directory = os.path.join(recording_loc, "Exports", "vanilla")
     else:
         directory = os.path.join(recording_loc, "pipeline-gaze-mappings", plugin.__name__)
-        export_directory = os.path.join(recording_loc, "exports", plugin.__name__)
+        export_directory = os.path.join(recording_loc, "Exports", plugin.__name__)
     os.makedirs(directory, exist_ok=True)
     file_name = "pipeline"  # self._gaze_mapping_file_name(gaze_mapper)
     with fm.PLData_Writer(directory, file_name) as writer:

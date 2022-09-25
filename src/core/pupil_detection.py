@@ -648,7 +648,7 @@ def get_datum_dicts_from_eyes(file_names, recording_loc, intrinsics, pupil_param
     return recording_dicts
 
 
-def save_datums_to_pldata(datums, save_location, world_file):
+def save_datums_to_pldata(datums, save_location, world_file, display_world_video=False):
     import file_methods as fm
     import player_methods as pm
 
@@ -707,64 +707,71 @@ def save_datums_to_pldata(datums, save_location, world_file):
         out = cv2.VideoWriter(os.path.join(save_location, "debug_world.avi"), fourcc, true_world_fps, (int(world_width), int(world_height)))
         cv2.waitKey(1)
         
-        while world_cap.isOpened():
-            if not ret:
-                break
-            
-            #world_timestamp = world_idx / world_fps
-            while (eye0_idx < len(datums[0]["debug_imgs"]) and eye0_timestamps[eye0_idx] < world_timestamps[world_idx])\
-                or (eye1_idx < len(datums[1]["debug_imgs"]) and eye1_timestamps[eye1_idx] < world_timestamps[world_idx]):
-                orig_world_frame = np.copy(world_frame)
-                # Keep repeating this and potentially incrementing the eye timestamps by 1 until it's time to advance to the next World frame
-                eye0_frame = datums[0]["debug_imgs"][eye0_idx]
-                eye1_frame = datums[1]["debug_imgs"][eye1_idx]
-                eye0_frame_resized = cv2.resize(eye0_frame, (200,200))
-                eye1_frame_resized = cv2.resize(eye1_frame, (200,200))
+        logging.info(f"Annotating world video...")
+        with alive_bar(int(world_framecount), bar = "filling") as bar:
+            while world_cap.isOpened():
+                if not ret:
+                    break
                 
-                eye0_dst = cv2.addWeighted(eye0_frame_resized, alpha, orig_world_frame[0:200, 0:200, :], beta, 0.0)
-                eye1_dst = cv2.addWeighted(eye1_frame_resized, alpha, orig_world_frame[0:200, int(world_width-200):int(world_width), :], beta, 0.0)
-                orig_world_frame[0:200, 0:200, :] = eye0_dst
-                orig_world_frame[0:200, int(world_width-200):int(world_width), :] = eye1_dst
-                
-                out.write(orig_world_frame)
-                cv2.imshow('frame',orig_world_frame)
-                cv2.waitKey(1)
-                
-                if eye0_idx < len(datums[0]["debug_imgs"]) and eye0_timestamps[eye0_idx] < world_timestamps[world_idx]:
-                    eye0_idx += 1
-                if eye1_idx < len(datums[1]["debug_imgs"]) and eye1_timestamps[eye1_idx] < world_timestamps[world_idx]:
-                    eye1_idx += 1
-                
-            #while eye0_idx < len(datums[0]["debug_imgs"]) and eye0_timestamps[eye0_idx] < world_timestamps[world_idx]:
-            #    eye0_idx += 1
-            #while eye1_idx < len(datums[1]["debug_imgs"]) and eye1_timestamps[eye1_idx] < world_timestamps[world_idx]:
-            #    eye1_idx += 1
+                #world_timestamp = world_idx / world_fps
+                while (eye0_idx < len(datums[0]["debug_imgs"]) and eye0_timestamps[eye0_idx] < world_timestamps[world_idx])\
+                    or (eye1_idx < len(datums[1]["debug_imgs"]) and eye1_timestamps[eye1_idx] < world_timestamps[world_idx]):
+                    orig_world_frame = np.copy(world_frame)
+                    # Keep repeating this and potentially incrementing the eye timestamps by 1 until it's time to advance to the next World frame
+                    eye0_frame = datums[0]["debug_imgs"][eye0_idx]
+                    eye1_frame = datums[1]["debug_imgs"][eye1_idx]
+                    eye0_frame_resized = cv2.resize(eye0_frame, (200,200))
+                    eye1_frame_resized = cv2.resize(eye1_frame, (200,200))
+                    
+                    eye0_dst = cv2.addWeighted(eye0_frame_resized, alpha, orig_world_frame[0:200, 0:200, :], beta, 0.0)
+                    eye1_dst = cv2.addWeighted(eye1_frame_resized, alpha, orig_world_frame[0:200, int(world_width-200):int(world_width), :], beta, 0.0)
+                    orig_world_frame[0:200, 0:200, :] = eye0_dst
+                    orig_world_frame[0:200, int(world_width-200):int(world_width), :] = eye1_dst
+                    
+                    out.write(orig_world_frame)
+                    if display_world_video:
+                        cv2.imshow('frame',orig_world_frame)
+                        cv2.waitKey(1)
+                    
+                    if eye0_idx < len(datums[0]["debug_imgs"]) and eye0_timestamps[eye0_idx] < world_timestamps[world_idx]:
+                        eye0_idx += 1
+                    if eye1_idx < len(datums[1]["debug_imgs"]) and eye1_timestamps[eye1_idx] < world_timestamps[world_idx]:
+                        eye1_idx += 1
+                    
+                #while eye0_idx < len(datums[0]["debug_imgs"]) and eye0_timestamps[eye0_idx] < world_timestamps[world_idx]:
+                #    eye0_idx += 1
+                #while eye1_idx < len(datums[1]["debug_imgs"]) and eye1_timestamps[eye1_idx] < world_timestamps[world_idx]:
+                #    eye1_idx += 1
 
-            #eye0_frame = datums[0]["debug_imgs"][eye0_idx]
-            #eye1_frame = datums[1]["debug_imgs"][eye1_idx]
-            #eye0_frame_resized = cv2.resize(eye0_frame, (200,200))
-            #eye1_frame_resized = cv2.resize(eye1_frame, (200,200))
-            
-            #eye0_dst = cv2.addWeighted(eye0_frame_resized, alpha, world_frame[0:200, 0:200, :], beta, 0.0)
-            #eye1_dst = cv2.addWeighted(eye1_frame_resized, alpha, world_frame[0:200, int(world_width-200):int(world_width), :], beta, 0.0)
-            #world_frame[0:200, 0:200, :] = eye0_dst
-            #world_frame[0:200, int(world_width-200):int(world_width), :] = eye1_dst
-            
-            #out.write(world_frame)
-            #cv2.imshow('frame',world_frame)
-            #cv2.waitKey(1)
-            
-            ret, world_frame = world_cap.read()
-            world_idx += 1
+                #eye0_frame = datums[0]["debug_imgs"][eye0_idx]
+                #eye1_frame = datums[1]["debug_imgs"][eye1_idx]
+                #eye0_frame_resized = cv2.resize(eye0_frame, (200,200))
+                #eye1_frame_resized = cv2.resize(eye1_frame, (200,200))
+                
+                #eye0_dst = cv2.addWeighted(eye0_frame_resized, alpha, world_frame[0:200, 0:200, :], beta, 0.0)
+                #eye1_dst = cv2.addWeighted(eye1_frame_resized, alpha, world_frame[0:200, int(world_width-200):int(world_width), :], beta, 0.0)
+                #world_frame[0:200, 0:200, :] = eye0_dst
+                #world_frame[0:200, int(world_width-200):int(world_width), :] = eye1_dst
+                
+                #out.write(world_frame)
+                #cv2.imshow('frame',world_frame)
+                #cv2.waitKey(1)
+                
+                bar()
+                ret, world_frame = world_cap.read()
+                world_idx += 1
         
         world_cap.release()
         out.release()
-        cv2.destroyAllWindows()
+        try:
+            cv2.destroyAllWindows()
+        except Exception as _:
+            pass
         logging.info(f"Saved video to {os.path.join(save_location, 'debug_world.avi')}")
 
 def perform_pupil_detection(recording_loc, plugin=None,
                             pupil_params=[{"intensity_range": 23,"pupil_size_min": 10,"pupil_size_max": 100}, {"intensity_range": 23,"pupil_size_min": 10,"pupil_size_max": 100}],
-                            world_file=None, load_2d_pupils=False, start_model_timestamp=None, freeze_model_timestamp=None):
+                            world_file=None, load_2d_pupils=False, start_model_timestamp=None, freeze_model_timestamp=None, display_world_video=False):
     eye0_intrinsics_loc = recording_loc + "/eye0.intrinsics"
     eye1_intrinsics_loc = recording_loc + "/eye1.intrinsics"
     scene_cam_intrinsics_loc = recording_loc + "/world.intrinsics"
@@ -781,12 +788,12 @@ def perform_pupil_detection(recording_loc, plugin=None,
     world_loc = None
     if world_file != None:
         world_loc = recording_loc+"/"+world_file
-    
+
     if plugin is None:
-        save_datums_to_pldata(datums, recording_loc + "/offline_data/vanilla", world_loc)
+        save_datums_to_pldata(datums, recording_loc + "/offline_data/vanilla", world_loc, display_world_video=display_world_video)
         logging.info(f"Saved pldata to disk at {recording_loc+f'/offline_data/vanilla'}.")
     else:
-        save_datums_to_pldata(datums, recording_loc + f"/offline_data/{plugin.__name__}", world_loc)
+        save_datums_to_pldata(datums, recording_loc + f"/offline_data/{plugin.__name__}", world_loc, display_world_video=display_world_video)
         logging.info(f"Saved pldata to disk at {recording_loc+f'/offline_data/{plugin.__name__}'}.")
 
 
