@@ -23,6 +23,18 @@ def pregenerate_eye_model(detector_3d, datums_2d, start_timestamp, stop_timestam
     prev_center = None
 
     for datum_2d in datums_2d:
+        
+        # ASPECT RATIO THRESHOLD
+        if aspectratio_threshold is not None and datum_2d["ellipse"]["axes"][0] != 0.0:
+            if datum_2d["ellipse"]["axes"][0] > datum_2d["ellipse"]["axes"][1]:
+                aspect_ratio = datum_2d["ellipse"]["axes"][1] / datum_2d["ellipse"]["axes"][0]
+            else:
+                aspect_ratio = datum_2d["ellipse"]["axes"][0] / datum_2d["ellipse"]["axes"][1]
+            if aspect_ratio > aspectratio_threshold:
+                datum_2d = datum_2d._deep_copy_dict()
+                datum_2d["confidence"] = 0.75
+                datum_2d = fm.Serialized_Dict(python_dict=datum_2d)
+        
         # VELOCITY THRESHOLD
         if threshold is not None:
             if prev_center is not None:
@@ -35,18 +47,7 @@ def pregenerate_eye_model(detector_3d, datums_2d, start_timestamp, stop_timestam
                 observation = detector_3d._extract_observation(datum_2d)
                 detector_3d.update_models(observation)
                 datum_2d = datum_2d._deep_copy_dict()
-                datum_2d["confidence"] = 0.75
-                datum_2d = fm.Serialized_Dict(python_dict=datum_2d)
-        
-        # ASPECT RATIO THRESHOLD
-        if aspectratio_threshold is not None and datum_2d["ellipse"]["axes"][0] != 0.0:
-            if datum_2d["ellipse"]["axes"][0] > datum_2d["ellipse"]["axes"][1]:
-                aspect_ratio = datum_2d["ellipse"]["axes"][1] / datum_2d["ellipse"]["axes"][0]
-            else:
-                aspect_ratio = datum_2d["ellipse"]["axes"][0] / datum_2d["ellipse"]["axes"][1]
-            if aspect_ratio > aspectratio_threshold:
-                datum_2d = datum_2d._deep_copy_dict()
-                datum_2d["confidence"] = 0.75
+                datum_2d["confidence"] = 0.65
                 datum_2d = fm.Serialized_Dict(python_dict=datum_2d)
         
         # UPDATE MODELS
@@ -335,9 +336,14 @@ def pl_detection_on_video(recording_path, g_pool, pupil_params, detector_plugin=
     #exit()
     
     # Generate model based on entire video
-    #from operator import itemgetter
-    #start_model_timestamp = min(datum_list["2d"], key=itemgetter("timestamp"))["timestamp"]#0.0
-    #freeze_model_timestamp = max(datum_list["2d"], key=itemgetter("timestamp"))["timestamp"]
+    freeze_model = False
+    if freeze_model:
+        from operator import itemgetter
+        start_model_timestamp = min(datum_list["2d"], key=itemgetter("timestamp"))["timestamp"]#0.0
+        freeze_model_timestamp = max(datum_list["2d"], key=itemgetter("timestamp"))["timestamp"]
+    else:
+        start_model_timestamp = None
+        freeze_model_timestamp = None
     
     has_frozen = False
     #import copy
@@ -347,8 +353,7 @@ def pl_detection_on_video(recording_path, g_pool, pupil_params, detector_plugin=
     #    temp_list.append(datum["confidence"])
 
     sync_updates_PL = False
-    start_model_timestamp = None
-    freeze_model_timestamp = None
+    
     if not sync_updates_PL and (start_model_timestamp is not None and freeze_model_timestamp is not None):
         logging.info(f"Pregenerating 3D eye model...")
         has_frozen = pregenerate_eye_model(detector3d.pupil_detector, datum_list["2d"], start_model_timestamp, freeze_model_timestamp, threshold, aspectratio_threshold=Aspect_ratio_threshold, freeze=True)
@@ -382,12 +387,6 @@ def pl_detection_on_video(recording_path, g_pool, pupil_params, detector_plugin=
                 delta = -1  # Cannot assume that the first detected pupil ellipse in a series is accurate, must get at least 2
             prev_center = datum_2d["ellipse"]["center"]
             
-            # VELOCITY THRESHOLD
-            if threshold is not None and delta > threshold:
-                datum_2d = datum_2d._deep_copy_dict()
-                datum_2d["confidence"] = 0.75
-                datum_2d = fm.Serialized_Dict(python_dict=datum_2d)
-            
             # ASPECT RATIO THRESHOLD
             if Aspect_ratio_threshold is not None and datum_2d["ellipse"]["axes"][0] != 0.0:
                 if datum_2d["ellipse"]["axes"][0] > datum_2d["ellipse"]["axes"][1]:
@@ -398,6 +397,12 @@ def pl_detection_on_video(recording_path, g_pool, pupil_params, detector_plugin=
                     datum_2d = datum_2d._deep_copy_dict()
                     datum_2d["confidence"] = 0.75
                     datum_2d = fm.Serialized_Dict(python_dict=datum_2d)
+            
+            # VELOCITY THRESHOLD
+            if threshold is not None and delta > threshold:
+                datum_2d = datum_2d._deep_copy_dict()
+                datum_2d["confidence"] = 0.65
+                datum_2d = fm.Serialized_Dict(python_dict=datum_2d)
             
             # FREEZE MODEL AT PROVIDED TIMESTAMP
             if freeze_model_timestamp is not None and has_frozen is False and timestamp >= freeze_model_timestamp:
