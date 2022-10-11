@@ -131,9 +131,11 @@ def load_ref_data(ref_loc):
 
 def load_realtime_ref_data(ref_loc):
     import file_methods as fm
-
-    ref = fm.load_object(ref_loc)
-    res = [{"screen_pos": r["mm_pos"], "timestamp": r["timestamp"]} for r in ref["data"]]
+    res = []
+    notifications = fm.load_pldata_file(ref_loc[:ref_loc.rfind('/')], "notify")
+    for topic, data in zip(notifications.topics, notifications.data):
+        if data['subject'] == 'calibration.add_ref_data' or data['subject'] == 'notify.calibration.add_ref_data':
+            res = res + [{"screen_pos": r["mm_pos"], "timestamp": r["timestamp"]} for r in data["ref_data"]]
     return res
     
 def get_first_realtime_ref_data_timestamp(ref_loc):
