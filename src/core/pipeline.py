@@ -39,7 +39,10 @@ def save_gaze_data(gaze, gaze_ts, recording_loc, plugin=None, export=True):
         class My_Gaze_Positions_Exporter(Gaze_Positions_Exporter):
             @classmethod
             def csv_export_labels(cls) -> T.Tuple[csv_utils.CSV_EXPORT_LABEL_TYPE, ...]:
-                return Gaze_Positions_Exporter.csv_export_labels() + ('pupil_confidence0', 'pupil_confidence1')
+                return Gaze_Positions_Exporter.csv_export_labels() + ('pupil_confidence0', 'pupil_confidence1',
+                                                            'deprojected_norm_pos_x', 'deprojected_norm_pos_y', 'deprojected_norm_pos_z',
+                                                            'deprojected_norm_pos0_x', 'deprojected_norm_pos0_y', 'deprojected_norm_pos0_z',
+                                                            'deprojected_norm_pos1_x', 'deprojected_norm_pos1_y', 'deprojected_norm_pos1_z',)
             
             @classmethod
             def dict_export(
@@ -54,7 +57,19 @@ def save_gaze_data(gaze, gaze_ts, recording_loc, plugin=None, export=True):
                             res['pupil_confidence0'] = v['confidence']
                         elif v['id'] == 1:
                             res['pupil_confidence1'] = v['confidence']
-                    
+                if raw_value.get('deprojected_norm_pos', None) is not None:
+                    res['deprojected_norm_pos_x'] = raw_value['deprojected_norm_pos'][0]
+                    res['deprojected_norm_pos_y'] = raw_value['deprojected_norm_pos'][1]
+                    res['deprojected_norm_pos_z'] = raw_value['deprojected_norm_pos'][2]
+                
+                if raw_value.get('deprojected_norm_pos0', None) is not None:
+                    res['deprojected_norm_pos0_x'] = raw_value['deprojected_norm_pos0'][0]
+                    res['deprojected_norm_pos0_y'] = raw_value['deprojected_norm_pos0'][1]
+                    res['deprojected_norm_pos0_z'] = raw_value['deprojected_norm_pos0'][2]
+                if raw_value.get('deprojected_norm_pos1', None) is not None:
+                    res['deprojected_norm_pos1_x'] = raw_value['deprojected_norm_pos1'][0]
+                    res['deprojected_norm_pos1_y'] = raw_value['deprojected_norm_pos1'][1]
+                    res['deprojected_norm_pos1_z'] = raw_value['deprojected_norm_pos1'][2]
                 return res
         
         os.makedirs(export_directory, exist_ok=True)
@@ -72,8 +87,12 @@ def save_gaze_data(gaze, gaze_ts, recording_loc, plugin=None, export=True):
         logging.info(f"Gaze data exported to {export_directory}.")
 
 
-def map_pupil_data(gazer, pupil_data):
+def map_pupil_data(gazer, pupil_data, rec_loc, bar_enabled=True):
     import file_methods as fm
+    import numpy as np
+    from methods import denormalize
+
+    scene_cam_intrinsics = load_intrinsics(rec_loc+"/world.intrinsics", resolution=(640,480))
 
     logging.info("Mapping pupil data to gaze data.")
     gaze = []
@@ -85,18 +104,70 @@ def map_pupil_data(gazer, pupil_data):
     curr_ts = first_ts
 
     prev_prog = 0.0
-    with alive_bar(int(len(pupil_data)/2), bar = "filling") as bar:
+    if bar_enabled:
+        with alive_bar(int(len(pupil_data)/2), bar = "filling") as bar:
+            for gaze_datum in gazer.map_pupil_to_gaze(pupil_data):
+                curr_ts = max(curr_ts, gaze_datum["timestamp"])
+                progress = (curr_ts - first_ts) / ts_span
+                #if floor(progress * 100) != floor(prev_prog * 100):
+                #    logging.info(f"Gaze Mapping Progress: {floor(progress*100)}%")
+                bar()
+                prev_prog = progress
+                # result = (curr_ts, fm.Serialized_Dict(gaze_datum))
+                
+                #deprojected = scene_cam_intrinsics.unprojectPoints(np.array([gaze_datum["norm_pos"]]), normalize=True)
+                deprojected = scene_cam_intrinsics.unprojectPoints(np.array([denormalize(gaze_datum["norm_pos"], size=(640, 480))]), normalize=True)
+                gaze_datum['deprojected_norm_pos'] = deprojected[0].tolist()
+                
+                try:
+                    deprojected_0 = scene_cam_intrinsics.unprojectPoints(np.array([denormalize(gaze_datum["right_norm_pos"], size=(640, 480))]), normalize=True)
+                    gaze_datum['deprojected_norm_pos0'] = deprojected_0[0].tolist()
+                except KeyError as _:
+                    # Modified 2D gazer was not used
+                    pass
+                except TypeError as _:
+                    # Modified 2D gazer was used, but this eye was not detected for this frame
+                    pass
+                
+                try:
+                    deprojected_1 = scene_cam_intrinsics.unprojectPoints(np.array([denormalize(gaze_datum["left_norm_pos"], size=(640, 480))]), normalize=True)
+                    gaze_datum['deprojected_norm_pos1'] = deprojected_1[0].tolist()
+                except KeyError as _:
+                    # Modified 2D gazer was not used
+                    pass
+                except TypeError as _:
+                    # Modified 2D gazer was used, but this eye was not detected for this frame
+                    pass
+                
+                gaze.append(fm.Serialized_Dict(gaze_datum))
+                gaze_ts.append(curr_ts)
+    else:
         for gaze_datum in gazer.map_pupil_to_gaze(pupil_data):
             curr_ts = max(curr_ts, gaze_datum["timestamp"])
             progress = (curr_ts - first_ts) / ts_span
             #if floor(progress * 100) != floor(prev_prog * 100):
             #    logging.info(f"Gaze Mapping Progress: {floor(progress*100)}%")
-            bar()
             prev_prog = progress
             # result = (curr_ts, fm.Serialized_Dict(gaze_datum))
 
+            deprojected = scene_cam_intrinsics.unprojectPoints(np.array([denormalize(gaze_datum["norm_pos"], size=(640, 480))]), normalize=True)
+            gaze_datum['deprojected_norm_pos'] = deprojected[0].tolist()
             gaze.append(fm.Serialized_Dict(gaze_datum))
             gaze_ts.append(curr_ts)
+
+    count_2 = 0
+    count_1 = 0
+    count_0 = 0
+    count_other = 0
+    for g in gaze:
+        if g["topic"] == 'gaze.2d.0.':
+            count_0 += 1
+        elif g["topic"] == 'gaze.2d.1.':
+            count_1 += 1
+        elif g["topic"] == 'gaze.2d.01.':
+            count_2 += 1
+        else:
+            count_other += 1
 
     logging.info("Pupil data mapped to gaze data.")
     return gaze, gaze_ts
@@ -105,14 +176,17 @@ def map_pupil_data(gazer, pupil_data):
 def calibrate_and_validate(
     ref_loc, pupil_loc, scene_cam_intrinsics_loc, mapping_method, realtime_ref_loc=None, min_calibration_confidence=0.0
 ):
-    ref_data = None
     if realtime_ref_loc is not None:
+        pupil = load_pupil_data(pupil_loc)
+        logging.debug(f"Loaded {len(pupil.data)} pupil positions")
         realtime_ref_data = load_realtime_ref_data(realtime_ref_loc)
         logging.debug(f"Loaded {len(realtime_ref_data)} reference locations")
-    else:
-        load_ref_data(ref_loc)
-        logging.debug(f"Loaded {len(ref_data)} reference locations")
-        realtime_ref_data = None
+        return calibrate_and_validate_realtime(realtime_ref_data, pupil, scene_cam_intrinsics_loc, mapping_method, min_calibration_confidence=min_calibration_confidence)
+
+    ref_data = None
+    load_ref_data(ref_loc)
+    logging.debug(f"Loaded {len(ref_data)} reference locations")
+    realtime_ref_data = None
 
     pupil = load_pupil_data(pupil_loc)
     logging.debug(f"Loaded {len(pupil.data)} pupil positions")
@@ -121,6 +195,15 @@ def calibrate_and_validate(
     gazer = fit_gazer(mapping_method, ref_data, pupil.data, scene_cam_intrinsics, realtime_ref=realtime_ref_data, min_calibration_confidence=min_calibration_confidence)
     return gazer, pupil.data
 
+def calibrate_and_validate_realtime(
+
+    realtime_ref_data, pupil, scene_cam_intrinsics_loc, mapping_method, min_calibration_confidence=0.0
+):
+    ref_data = None
+    scene_cam_intrinsics = load_intrinsics(scene_cam_intrinsics_loc, resolution=(640,480))
+    logging.debug(f"Loaded scene camera intrinsics: {scene_cam_intrinsics}")
+    gazer = fit_gazer(mapping_method, ref_data, pupil.data, scene_cam_intrinsics, realtime_ref=realtime_ref_data, min_calibration_confidence=min_calibration_confidence)
+    return gazer, pupil.data
 
 def load_ref_data(ref_loc):
     import file_methods as fm
