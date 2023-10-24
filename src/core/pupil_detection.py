@@ -308,23 +308,10 @@ def pl_detection_on_video(recording_path, g_pool, pupil_params, detector_plugin=
     roi = Roi(
         g_pool=g_pool, frame_size=(width, height), bounds=(0, 0, width, height)
     )
-    """
-    pupil_params = [
-        {  # eye 0 pupil detection properties
-            "intensity_range": 9,
-            "pupil_size_min": 10,
-            "pupil_size_max": 82
-        },
-        {  # eye 1 pupil detection properties
-            "intensity_range": 9,
-            "pupil_size_min": 10,
-            "pupil_size_max": 82
-        }
-    ]
-    """
+
     detector2d = Detector2DPlugin(g_pool=g_pool, properties=pupil_params[id])
-    #detector2d_ = detector2d.detector_ritnet_2d
-    detector3d = Pye3DPlugin(g_pool=g_pool)
+    if not skip_3d_detection:
+        detector3d = Pye3DPlugin(g_pool=g_pool)
     
     count = 0
     plugin_name = "vanilla"
@@ -434,17 +421,20 @@ def pl_detection_on_video(recording_path, g_pool, pupil_params, detector_plugin=
                     if pupil_datum["ellipse"]["axes"][1] != 0.0:
                         axesratio.append(pupil_datum["ellipse"]["axes"][1] / pupil_datum["ellipse"]["axes"][0])
                     # IoU
-                    im_curr = cv2.ellipse(np.zeros((height, width)).astype(np.uint8), (int(pupil_datum["ellipse"]["center"][0]), int(pupil_datum["ellipse"]["center"][1])),
-                        (int(pupil_datum["ellipse"]["axes"][0] / 2), int(pupil_datum["ellipse"]["axes"][1] / 2)),
-                        pupil_datum["ellipse"]["angle"], 0., 360., 255, -1)
-                    if im_prev is None:
-                        im_prev = cv2.ellipse(np.zeros((height, width)).astype(np.uint8), (int(prev_center[0]), int(prev_center[1])),
-                            (int(prev_axes[0] / 2), int(prev_axes[1] / 2)),
-                            prev_theta, 0., 360., 255, -1)
-                    intersection_mask = cv2.bitwise_and(im_curr, im_prev)
-                    union_mask = cv2.bitwise_or(im_curr, im_prev)
-                    IoU = cv2.countNonZero(intersection_mask) / cv2.countNonZero(union_mask)
-                    im_prev = im_curr
+                    try:
+                        im_curr = cv2.ellipse(np.zeros((height, width)).astype(np.uint8), (int(pupil_datum["ellipse"]["center"][0]), int(pupil_datum["ellipse"]["center"][1])),
+                            (int(pupil_datum["ellipse"]["axes"][0] / 2), int(pupil_datum["ellipse"]["axes"][1] / 2)),
+                            pupil_datum["ellipse"]["angle"], 0., 360., 255, -1)
+                        if im_prev is None:
+                            im_prev = cv2.ellipse(np.zeros((height, width)).astype(np.uint8), (int(prev_center[0]), int(prev_center[1])),
+                                (int(prev_axes[0] / 2), int(prev_axes[1] / 2)),
+                                prev_theta, 0., 360., 255, -1)
+                        intersection_mask = cv2.bitwise_and(im_curr, im_prev)
+                        union_mask = cv2.bitwise_or(im_curr, im_prev)
+                        IoU = cv2.countNonZero(intersection_mask) / cv2.countNonZero(union_mask)
+                        im_prev = im_curr
+                    except:     
+                        IoU = 0.0
                     ious.append(IoU)
                     # OVERRIDE CONFIDENCE
                     if IOU_threshold is not None and IoU <= IOU_threshold:
@@ -477,40 +467,6 @@ def pl_detection_on_video(recording_path, g_pool, pupil_params, detector_plugin=
     H+=np.histogram(centerdelta, bins=int(np.ceil(np.sqrt(height**2 + width**2)) * 2))[0]
 
     plt.bar(bins[:-1],H,width=1)
-    
-    print("1:",np.percentile(centerdelta, 1.0))
-    print("2:",np.percentile(centerdelta, 2.0))
-    print("3:",np.percentile(centerdelta, 3.0))
-    print("4:",np.percentile(centerdelta, 4.0))
-    print("5:",np.percentile(centerdelta, 5.0))
-    print("6:",np.percentile(centerdelta, 6.0))
-    print("7:",np.percentile(centerdelta, 7.0))
-    print("8:",np.percentile(centerdelta, 8.0))
-    print("9:",np.percentile(centerdelta, 9.0))
-    print("10:",np.percentile(centerdelta, 10.0))
-    print("50:",np.percentile(centerdelta, 50.0))
-    print("80:",np.percentile(centerdelta, 80.0))
-    print("81:",np.percentile(centerdelta, 81.0))
-    print("82:",np.percentile(centerdelta, 82.0))
-    print("83:",np.percentile(centerdelta, 83.0))
-    print("84:",np.percentile(centerdelta, 84.0))
-    print("85:",np.percentile(centerdelta, 85.0))
-    print("86:",np.percentile(centerdelta, 86.0))
-    print("87:",np.percentile(centerdelta, 87.0))
-    print("88:",np.percentile(centerdelta, 88.0))
-    print("89:",np.percentile(centerdelta, 89.0))
-    print("90:",np.percentile(centerdelta, 90.0))
-    print("91:",np.percentile(centerdelta, 91.0))
-    print("92:",np.percentile(centerdelta, 92.0))
-    print("93:",np.percentile(centerdelta, 93.0))
-    print("94:",np.percentile(centerdelta, 94.0))
-    print("95:",np.percentile(centerdelta, 95.0))
-    print("96:",np.percentile(centerdelta, 96.0))
-    print("97:",np.percentile(centerdelta, 97.0))
-    print("98:",np.percentile(centerdelta, 98.0))
-    print("99:",np.percentile(centerdelta, 99.0))
-    print("100:",np.percentile(centerdelta, 100.0))
-    print()
 
     plt.title("Pupil Centroid Celta")
     #plt.show()

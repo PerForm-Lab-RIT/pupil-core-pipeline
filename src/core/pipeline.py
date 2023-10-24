@@ -39,7 +39,8 @@ def save_gaze_data(gaze, gaze_ts, recording_loc, plugin=None, export=True):
         class My_Gaze_Positions_Exporter(Gaze_Positions_Exporter):
             @classmethod
             def csv_export_labels(cls) -> T.Tuple[csv_utils.CSV_EXPORT_LABEL_TYPE, ...]:
-                return Gaze_Positions_Exporter.csv_export_labels() + ('pupil_confidence0', 'pupil_confidence1',
+                return Gaze_Positions_Exporter.csv_export_labels() + ('pupil_confidence0', 'pupil_confidence1', 'pupil_centroid0_x',
+                                                            'pupil_centroid0_y', 'pupil_centroid1_x', 'pupil_centroid1_y',
                                                             'deprojected_norm_pos_x', 'deprojected_norm_pos_y', 'deprojected_norm_pos_z',
                                                             'deprojected_norm_pos0_x', 'deprojected_norm_pos0_y', 'deprojected_norm_pos0_z',
                                                             'deprojected_norm_pos1_x', 'deprojected_norm_pos1_y', 'deprojected_norm_pos1_z',)
@@ -51,12 +52,20 @@ def save_gaze_data(gaze, gaze_ts, recording_loc, plugin=None, export=True):
                 res = Gaze_Positions_Exporter.dict_export(raw_value, world_index)
                 res['pupil_confidence0'] = 0.0
                 res['pupil_confidence1'] = 0.0
+                res['pupil_centroid0_x'] = 0.0
+                res['pupil_centroid0_y'] = 0.0
+                res['pupil_centroid1_x'] = 0.0
+                res['pupil_centroid1_y'] = 0.0
                 if raw_value.get("base_data", None) is not None:
                     for v in raw_value['base_data']:
                         if v['id'] == 0:
                             res['pupil_confidence0'] = v['confidence']
+                            res['pupil_centroid0_x'] = v['norm_pos'][0]#v['center'][0]
+                            res['pupil_centroid0_y'] = v['norm_pos'][1]#v['center'][1]
                         elif v['id'] == 1:
                             res['pupil_confidence1'] = v['confidence']
+                            res['pupil_centroid1_x'] = v['norm_pos'][0]#v['center'][0]
+                            res['pupil_centroid1_y'] = v['norm_pos'][1]#v['center'][1]
                 if raw_value.get('deprojected_norm_pos', None) is not None:
                     res['deprojected_norm_pos_x'] = raw_value['deprojected_norm_pos'][0]
                     res['deprojected_norm_pos_y'] = raw_value['deprojected_norm_pos'][1]
@@ -105,7 +114,7 @@ def map_pupil_data(gazer, pupil_data, rec_loc, bar_enabled=True):
 
     prev_prog = 0.0
     if bar_enabled:
-        with alive_bar(int(len(pupil_data)/2), bar = "filling") as bar:
+        with alive_bar(int(len(pupil_data)), bar = "filling") as bar:
             for gaze_datum in gazer.map_pupil_to_gaze(pupil_data):
                 curr_ts = max(curr_ts, gaze_datum["timestamp"])
                 progress = (curr_ts - first_ts) / ts_span
