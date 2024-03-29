@@ -405,6 +405,10 @@ def pl_detection_on_video(recording_path, g_pool, pupil_params, detector_plugin=
                 pupil_datum = fm.Serialized_Dict(python_dict=pupil_datum)
                 # PL confidence
                 plconfs.append(pupil_datum["confidence"])
+                
+                if pupil_datum["confidence"] > 0.98:
+                    cv2.imwrite(f"{recording_loc}/above_0.98/{id}_{idx}.png", bgr)
+                
                 if prev_center is not None:
                     # center delta
                     center_delta = np.linalg.norm(np.array(pupil_datum["ellipse"]["center"]) - np.array(prev_center))
