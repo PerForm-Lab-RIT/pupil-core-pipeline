@@ -193,7 +193,7 @@ def calibrate_and_validate(
         return calibrate_and_validate_realtime(realtime_ref_data, pupil, scene_cam_intrinsics_loc, mapping_method, min_calibration_confidence=min_calibration_confidence)
 
     ref_data = None
-    load_ref_data(ref_loc)
+    ref_data = load_ref_data(ref_loc)
     logging.debug(f"Loaded {len(ref_data)} reference locations")
     realtime_ref_data = None
 

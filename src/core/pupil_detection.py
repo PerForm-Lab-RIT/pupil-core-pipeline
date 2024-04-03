@@ -781,103 +781,103 @@ def pl_detection_on_video(recording_path, g_pool, pupil_params, detector_plugin=
                     reproj_error = 0.5*first + 0.5*second
                 except ZeroDivisionError as e:
                     reproj_error = 0.0
-                
                 reproj_errors_axes.append(1 - reproj_error)
-                
-                #proj_pupilpts = cv2.ellipse2Poly(
-                #            center=(int(proj_ellipse["ellipse"]["center"][0]), height - int(proj_ellipse["ellipse"]["center"][1])),
-                #            axes=(int(proj_ellipse["ellipse"]["axes"][0] / 2), int(proj_ellipse["ellipse"]["axes"][1] / 2)),
-                #            angle=180-int(proj_ellipse["ellipse"]["angle"]),
-                #            arcStart=0,
-                #            arcEnd=360,
-                #            delta=1,
-                #        )
-                
-                
-                # Display 3d model outline in eye window
-                ellipse = pupil3d_datum["projected_sphere"]
-                thickness = 2
-                try:
-                    if flip:
-                        pts = cv2.ellipse2Poly(
-                            center=(int(ellipse["center"][0]), height - int(ellipse["center"][1])),
-                            axes=(int(ellipse["axes"][0] / 2), int(ellipse["axes"][1] / 2)),
-                            angle=int(ellipse["angle"]),
-                            arcStart=0,
-                            arcEnd=360,
-                            delta=1,
-                        )
-                    else:
-                        pts = cv2.ellipse2Poly(
-                            center=(int(ellipse["center"][0]), int(ellipse["center"][1])),
-                            axes=(int(ellipse["axes"][0] / 2), int(ellipse["axes"][1] / 2)),
-                            angle=int(ellipse["angle"]),
-                            arcStart=0,
-                            arcEnd=360,
-                            delta=1,
-                        )
-                    #draw_polyline(pts, thickness, RGBA(*rgba))
-                except Exception as e:
-                    pts = []
-                debug_frame = np.array(frame)#np.fliplr(frame)
-                if flip:
-                    debug_frame = np.flipud(debug_frame)
-                debug_frame = np.ascontiguousarray(debug_frame)
-                cv2.drawContours(debug_frame, np.array([pts]), -1, (0, 255, 0), thickness=2)
-                
-                # Display detected 2d pupil outline in eye window
-                try:
-                    if flip:
-                        pupilpts = cv2.ellipse2Poly(
-                            center=(int(datum_2d["ellipse"]["center"][0]), height - int(datum_2d["ellipse"]["center"][1])),
-                            axes=(int(datum_2d["ellipse"]["axes"][0] / 2), int(datum_2d["ellipse"]["axes"][1] / 2)),
-                            angle=180-int(datum_2d["ellipse"]["angle"]),
-                            arcStart=0,
-                            arcEnd=360,
-                            delta=1,
-                        )
-                    else:
-                        pupilpts = cv2.ellipse2Poly(
-                            center=(int(datum_2d["ellipse"]["center"][0]), int(datum_2d["ellipse"]["center"][1])),
-                            axes=(int(datum_2d["ellipse"]["axes"][0] / 2), int(datum_2d["ellipse"]["axes"][1] / 2)),
-                            angle=int(datum_2d["ellipse"]["angle"]),
-                            arcStart=0,
-                            arcEnd=360,
-                            delta=1,
-                        )
-                except Exception as e:
-                    pupilpts = []
-                cv2.drawContours(debug_frame, np.array([pupilpts]), -1, (255, 0, 0), thickness=2)
-                
-                # Display reprojected 3d pupil outline in eye window
-                try:
-                    if flip:
-                        reproj_pupilpts = cv2.ellipse2Poly(
-                            center=(int(proj_ellipse["center"][0]), height - int(proj_ellipse["center"][1])),
-                            axes=(int(proj_ellipse["axes"][0] / 2), int(proj_ellipse["axes"][1] / 2)),
-                            angle=180-int(proj_ellipse["angle"]),
-                            arcStart=0,
-                            arcEnd=360,
-                            delta=1,
-                        )
-                    else:
-                        reproj_pupilpts = cv2.ellipse2Poly(
-                            center=(int(proj_ellipse["center"][0]), int(proj_ellipse["center"][1])),
-                            axes=(int(proj_ellipse["axes"][0] / 2), int(proj_ellipse["axes"][1] / 2)),
-                            angle=int(proj_ellipse["angle"]),
-                            arcStart=0,
-                            arcEnd=360,
-                            delta=1,
-                        )
-                    cv2.drawContours(debug_frame, np.array([reproj_pupilpts]), -1, (0, 0, 255), thickness=2)
-                except Exception as e:
-                    reproj_pupilpts = []
-                
-                datum_list["debug_imgs"].append(debug_frame)
+
                 if debug_window:
+                    #proj_pupilpts = cv2.ellipse2Poly(
+                    #            center=(int(proj_ellipse["ellipse"]["center"][0]), height - int(proj_ellipse["ellipse"]["center"][1])),
+                    #            axes=(int(proj_ellipse["ellipse"]["axes"][0] / 2), int(proj_ellipse["ellipse"]["axes"][1] / 2)),
+                    #            angle=180-int(proj_ellipse["ellipse"]["angle"]),
+                    #            arcStart=0,
+                    #            arcEnd=360,
+                    #            delta=1,
+                    #        )
+                    
+                    
+                    # Display 3d model outline in eye window
+                    ellipse = pupil3d_datum["projected_sphere"]
+                    thickness = 2
+                    try:
+                        if flip:
+                            pts = cv2.ellipse2Poly(
+                                center=(int(ellipse["center"][0]), height - int(ellipse["center"][1])),
+                                axes=(int(ellipse["axes"][0] / 2), int(ellipse["axes"][1] / 2)),
+                                angle=int(ellipse["angle"]),
+                                arcStart=0,
+                                arcEnd=360,
+                                delta=1,
+                            )
+                        else:
+                            pts = cv2.ellipse2Poly(
+                                center=(int(ellipse["center"][0]), int(ellipse["center"][1])),
+                                axes=(int(ellipse["axes"][0] / 2), int(ellipse["axes"][1] / 2)),
+                                angle=int(ellipse["angle"]),
+                                arcStart=0,
+                                arcEnd=360,
+                                delta=1,
+                            )
+                        #draw_polyline(pts, thickness, RGBA(*rgba))
+                    except Exception as e:
+                        pts = []
+                    debug_frame = np.array(frame)#np.fliplr(frame)
+                    if flip:
+                        debug_frame = np.flipud(debug_frame)
+                    debug_frame = np.ascontiguousarray(debug_frame)
+                    cv2.drawContours(debug_frame, np.array([pts]), -1, (0, 255, 0), thickness=2)
+                    
+                    # Display detected 2d pupil outline in eye window
+                    try:
+                        if flip:
+                            pupilpts = cv2.ellipse2Poly(
+                                center=(int(datum_2d["ellipse"]["center"][0]), height - int(datum_2d["ellipse"]["center"][1])),
+                                axes=(int(datum_2d["ellipse"]["axes"][0] / 2), int(datum_2d["ellipse"]["axes"][1] / 2)),
+                                angle=180-int(datum_2d["ellipse"]["angle"]),
+                                arcStart=0,
+                                arcEnd=360,
+                                delta=1,
+                            )
+                        else:
+                            pupilpts = cv2.ellipse2Poly(
+                                center=(int(datum_2d["ellipse"]["center"][0]), int(datum_2d["ellipse"]["center"][1])),
+                                axes=(int(datum_2d["ellipse"]["axes"][0] / 2), int(datum_2d["ellipse"]["axes"][1] / 2)),
+                                angle=int(datum_2d["ellipse"]["angle"]),
+                                arcStart=0,
+                                arcEnd=360,
+                                delta=1,
+                            )
+                    except Exception as e:
+                        pupilpts = []
+                    cv2.drawContours(debug_frame, np.array([pupilpts]), -1, (255, 0, 0), thickness=2)
+                    
+                    # Display reprojected 3d pupil outline in eye window
+                    try:
+                        if flip:
+                            reproj_pupilpts = cv2.ellipse2Poly(
+                                center=(int(proj_ellipse["center"][0]), height - int(proj_ellipse["center"][1])),
+                                axes=(int(proj_ellipse["axes"][0] / 2), int(proj_ellipse["axes"][1] / 2)),
+                                angle=180-int(proj_ellipse["angle"]),
+                                arcStart=0,
+                                arcEnd=360,
+                                delta=1,
+                            )
+                        else:
+                            reproj_pupilpts = cv2.ellipse2Poly(
+                                center=(int(proj_ellipse["center"][0]), int(proj_ellipse["center"][1])),
+                                axes=(int(proj_ellipse["axes"][0] / 2), int(proj_ellipse["axes"][1] / 2)),
+                                angle=int(proj_ellipse["angle"]),
+                                arcStart=0,
+                                arcEnd=360,
+                                delta=1,
+                            )
+                        cv2.drawContours(debug_frame, np.array([reproj_pupilpts]), -1, (0, 0, 255), thickness=2)
+                    except Exception as e:
+                        reproj_pupilpts = []
+                    
+                    #datum_list["debug_imgs"].append(debug_frame)  # Only needed for annotated world videos -- very memory intensive
+                    
                     cv2.imshow("debug", debug_frame)
                     cv2.waitKey(1)
-                #success, frame = vidcap.read()
+                    #success, frame = vidcap.read()
                 bar()
             #if delta_fig_path is not None:
             #    os.makedirs(delta_fig_path+"/"+plugin_name+"/", exist_ok=True)
@@ -982,8 +982,8 @@ def save_datums_to_pldata(datums, save_location, world_file, display_world_video
         world_duration = world_framecount/world_fps
         
         logging.info(f"Found {world_fps}fps {world_width}x{world_height} world video at {world_file}.")
-        eye0_fps = len(datums[0]["debug_imgs"])/world_duration
-        eye1_fps = len(datums[1]["debug_imgs"])/world_duration
+        eye0_fps = len(datums[0]["2d"])/world_duration
+        eye1_fps = len(datums[1]["2d"])/world_duration
         logging.info(f"Found {eye0_fps}fps and {eye1_fps}fps eye videos.")
         world_idx = 0
         eye0_idx = 0
@@ -1000,65 +1000,66 @@ def save_datums_to_pldata(datums, save_location, world_file, display_world_video
         eye0_timestamp = eye0_timestamps[eye0_idx]
         eye1_timestamp = eye1_timestamps[eye1_idx]
 
-        true_world_fps = np.max([world_framecount, len(datums[0]["debug_imgs"]), len(datums[1]["debug_imgs"])]) / world_duration
+        true_world_fps = np.max([world_framecount, len(datums[0]["2d"]), len(datums[1]["2d"])]) / world_duration
 
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         out = cv2.VideoWriter(os.path.join(save_location, "debug_world.avi"), fourcc, true_world_fps, (int(world_width), int(world_height)))
         cv2.waitKey(1)
         
-        logging.info(f"Annotating world video...")
-        with alive_bar(int(world_framecount), bar = "filling") as bar:
-            while world_cap.isOpened():
-                if not ret:
-                    break
-                
-                #world_timestamp = world_idx / world_fps
-                while (eye0_idx < len(datums[0]["debug_imgs"]) and eye0_timestamps[eye0_idx] < world_timestamps[world_idx])\
-                    or (eye1_idx < len(datums[1]["debug_imgs"]) and eye1_timestamps[eye1_idx] < world_timestamps[world_idx]):
-                    orig_world_frame = np.copy(world_frame)
-                    # Keep repeating this and potentially incrementing the eye timestamps by 1 until it's time to advance to the next World frame
-                    eye0_frame = datums[0]["debug_imgs"][eye0_idx]
-                    eye1_frame = datums[1]["debug_imgs"][eye1_idx]
-                    eye0_frame_resized = cv2.resize(eye0_frame, (200,200))
-                    eye1_frame_resized = cv2.resize(eye1_frame, (200,200))
+        if False:  # Don't create a world video -- it's too memory intensive
+            logging.info(f"Annotating world video...")
+            with alive_bar(int(world_framecount), bar = "filling") as bar:
+                while world_cap.isOpened():
+                    if not ret:
+                        break
                     
-                    eye0_dst = cv2.addWeighted(eye0_frame_resized, alpha, orig_world_frame[0:200, 0:200, :], beta, 0.0)
-                    eye1_dst = cv2.addWeighted(eye1_frame_resized, alpha, orig_world_frame[0:200, int(world_width-200):int(world_width), :], beta, 0.0)
-                    orig_world_frame[0:200, 0:200, :] = eye0_dst
-                    orig_world_frame[0:200, int(world_width-200):int(world_width), :] = eye1_dst
-                    
-                    out.write(orig_world_frame)
-                    if display_world_video:
-                        cv2.imshow('frame',orig_world_frame)
-                        cv2.waitKey(1)
-                    
-                    if eye0_idx < len(datums[0]["debug_imgs"]) and eye0_timestamps[eye0_idx] < world_timestamps[world_idx]:
-                        eye0_idx += 1
-                    if eye1_idx < len(datums[1]["debug_imgs"]) and eye1_timestamps[eye1_idx] < world_timestamps[world_idx]:
-                        eye1_idx += 1
-                    
-                #while eye0_idx < len(datums[0]["debug_imgs"]) and eye0_timestamps[eye0_idx] < world_timestamps[world_idx]:
-                #    eye0_idx += 1
-                #while eye1_idx < len(datums[1]["debug_imgs"]) and eye1_timestamps[eye1_idx] < world_timestamps[world_idx]:
-                #    eye1_idx += 1
+                    #world_timestamp = world_idx / world_fps
+                    while (eye0_idx < len(datums[0]["2d"]) and eye0_timestamps[eye0_idx] < world_timestamps[world_idx])\
+                        or (eye1_idx < len(datums[1]["2d"]) and eye1_timestamps[eye1_idx] < world_timestamps[world_idx]):
+                        orig_world_frame = np.copy(world_frame)
+                        # Keep repeating this and potentially incrementing the eye timestamps by 1 until it's time to advance to the next World frame
+                        eye0_frame = datums[0]["2d"][eye0_idx]
+                        eye1_frame = datums[1]["2d"][eye1_idx]
+                        eye0_frame_resized = cv2.resize(eye0_frame, (200,200))
+                        eye1_frame_resized = cv2.resize(eye1_frame, (200,200))
+                        
+                        eye0_dst = cv2.addWeighted(eye0_frame_resized, alpha, orig_world_frame[0:200, 0:200, :], beta, 0.0)
+                        eye1_dst = cv2.addWeighted(eye1_frame_resized, alpha, orig_world_frame[0:200, int(world_width-200):int(world_width), :], beta, 0.0)
+                        orig_world_frame[0:200, 0:200, :] = eye0_dst
+                        orig_world_frame[0:200, int(world_width-200):int(world_width), :] = eye1_dst
+                        
+                        out.write(orig_world_frame)
+                        if display_world_video:
+                            cv2.imshow('frame',orig_world_frame)
+                            cv2.waitKey(1)
+                        
+                        if eye0_idx < len(datums[0]["2d"]) and eye0_timestamps[eye0_idx] < world_timestamps[world_idx]:
+                            eye0_idx += 1
+                        if eye1_idx < len(datums[1]["2d"]) and eye1_timestamps[eye1_idx] < world_timestamps[world_idx]:
+                            eye1_idx += 1
+                        
+                    #while eye0_idx < len(datums[0]["debug_imgs"]) and eye0_timestamps[eye0_idx] < world_timestamps[world_idx]:
+                    #    eye0_idx += 1
+                    #while eye1_idx < len(datums[1]["debug_imgs"]) and eye1_timestamps[eye1_idx] < world_timestamps[world_idx]:
+                    #    eye1_idx += 1
 
-                #eye0_frame = datums[0]["debug_imgs"][eye0_idx]
-                #eye1_frame = datums[1]["debug_imgs"][eye1_idx]
-                #eye0_frame_resized = cv2.resize(eye0_frame, (200,200))
-                #eye1_frame_resized = cv2.resize(eye1_frame, (200,200))
-                
-                #eye0_dst = cv2.addWeighted(eye0_frame_resized, alpha, world_frame[0:200, 0:200, :], beta, 0.0)
-                #eye1_dst = cv2.addWeighted(eye1_frame_resized, alpha, world_frame[0:200, int(world_width-200):int(world_width), :], beta, 0.0)
-                #world_frame[0:200, 0:200, :] = eye0_dst
-                #world_frame[0:200, int(world_width-200):int(world_width), :] = eye1_dst
-                
-                #out.write(world_frame)
-                #cv2.imshow('frame',world_frame)
-                #cv2.waitKey(1)
-                
-                bar()
-                ret, world_frame = world_cap.read()
-                world_idx += 1
+                    #eye0_frame = datums[0]["debug_imgs"][eye0_idx]
+                    #eye1_frame = datums[1]["debug_imgs"][eye1_idx]
+                    #eye0_frame_resized = cv2.resize(eye0_frame, (200,200))
+                    #eye1_frame_resized = cv2.resize(eye1_frame, (200,200))
+                    
+                    #eye0_dst = cv2.addWeighted(eye0_frame_resized, alpha, world_frame[0:200, 0:200, :], beta, 0.0)
+                    #eye1_dst = cv2.addWeighted(eye1_frame_resized, alpha, world_frame[0:200, int(world_width-200):int(world_width), :], beta, 0.0)
+                    #world_frame[0:200, 0:200, :] = eye0_dst
+                    #world_frame[0:200, int(world_width-200):int(world_width), :] = eye1_dst
+                    
+                    #out.write(world_frame)
+                    #cv2.imshow('frame',world_frame)
+                    #cv2.waitKey(1)
+                    
+                    bar()
+                    ret, world_frame = world_cap.read()
+                    world_idx += 1
         
         world_cap.release()
         out.release()
